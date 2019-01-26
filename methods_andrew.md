@@ -3,17 +3,21 @@ Methods for Scott et al., 2019
 
 >Applied Bioinformatics Core, Weill Cornell Medicine
 
-## Bioinformatics Methods
+* [RNA-seq](#rnaseq)
+* [ATAC-seq](#attac)
+* [ChIP-seq](#chip)
+* [References](#refs)
 
 The quality of the sequenced reads was assessed with `FastQC` and `QoRTs` (for RNA-seq samples).
+The scripts for preprocessing including alignment, coverage and count file generation and normalization can be found in the folder [`preprocessing`](https://github.com/friedue/Scott2019/blob/master/preprocessing/).
 Unless stated otherwise, all plots involving high-throughput sequencing data were obtained with custom R scripts (see the folder [`code_for_figures`](https://github.com/friedue/Scott2019/tree/master/code_for_figures)).
 
-### RNA-seq
+## RNA-seq <a name="rnaseq"></a>
 
 DNA reads were aligned with default parameters to the mouse reference genome (GRCm38) using `STAR`.
 Gene expression estimates were obtained with `featureCounts` using composite gene models (union of the exons of all transcript isoforms per gene) from Gencode (version M17).
 
-#### Differentially expressed genes
+### Differentially expressed genes
 
 Differentially expressed genes (DEG) were determined with `DESeq2`.
 The q-value cut-offs for the final lists of DEG were as follows: 
@@ -22,19 +26,19 @@ The q-value cut-offs for the final lists of DEG were as follows:
 - TAG vs. OT1: 2347 DEG with q-value smaller than 0.05
 - WT vs. TOX KO: 679 DEG with q-value smaller than 0.05
 
-#### Pathway and GO term enrichment analyses
+### Pathway and GO term enrichment analyses
 
 Gene set enrichment analyses were done using GSEA on Reads Per Kilobase Million (RPKM) values against a gene set permutation (the seed was set to 149).   
 
-#### Heatmaps
+### Heatmaps
 Heatmaps were created using log2 counts per million (CPMs) of genes identified as differentially expressed by `DESeq2` (adjusted p < 0.05 unless otherwise noted). Rows were centered and scaled. 
 
-### ATAC-seq
+## ATAC-seq <a name="attac"></a>
 
 ATAC-seq data published by Philip et al, 2017 were downloaded from GEO (series: GSE89308).
 These data sets were processed in the same manner as the newly generated data sets described in this study.
 
-#### Alignment and identification of open chromatin regions
+### Alignment and identification of open chromatin regions
 
 The data was processed following the recommendations of the ENCODE consortium:
 Reads were aligned to the mouse reference genome (version GRCm38) with `BWA-backtrack` .
@@ -43,16 +47,16 @@ Post-alignment filtering was done with `samtools` and Picard tools to remove unm
 To identify regions of open chromatin represented by enrichments of reads, peak calling was performed with `MACS2` .
 For every replicate, the `narrowpeak` results of `MACS2` were used after filtering for adjusted p-values smaller than 0.01.
 
-#### Differentially accessible regions
+### Differentially accessible regions
 
 Regions where the chromatin accessibility changed between different conditions were identified with `diffBind` : with the following options: `minOverlap=4, bUseSummarizeOverlaps=T, minMembers=2, bFullLibrarySize=TRUE`.
 
-#### Coverage files
+### Coverage files
 
 Individual coverage files per replicate normalized for differences in sequencing depths between the different samples were generated with `bamCoverage` of the deepTools suite using the following parameters: `-bs 10 --normalizeUsing RPGC --effectiveGenomeSize 2150570000 --blackListFileName mm10.blacklist --ignoreForNormalization chrX chrY --ignoreDuplicates --minFragmentLength 40 -p 1`.
 
 To create merged coverage files of replicates of the same condition, we used `multiBigwigSummary` to obtain the sequencing-depth-normalized coverage values for 10 bp bins along the entire genome, i.e. for every condition, we obtained a table with the coverage values in every replicate within the same bin.
-Subsequently, we chose the mean value for every bin to represent the coverage in the resulting "merged" file (see github.com/friedue/Scott2019 for the actual code that was used).
+Subsequently, we chose the mean value for every bin to represent the coverage in the resulting "merged" file (see [averaging_bigWigs_example.sh](https://github.com/friedue/Scott2019/blob/master/preprocessing/averaging_bigWigs_example.sh)).
 
 Merged coverage files were used for display in IGV (e.g. Fig 2i, 5g) and for heatmaps shown in Figures 2h and 5e.
 
@@ -72,22 +76,22 @@ Motif analysis was then run separately on hyper- or hypo-accessible peaks in eac
 The relationship between RNA-seq and ATAC-seq was explorered via "diamond" plots for select genes detected as differentially expressed via `DESeq2`. Each gene was represented by a stack of diamond-shaped points colored by that gene’s associated chromatin state (blue indicating closing and red indicating opening). The bottom-most point in each stack corresponds to the log2 fold change in expression of that gene. 
 
 
-### ChIP-seq
+## ChIP-seq <a name="chip"></a>
 
-#### NFAT1 ChIP-seq (publicly available)
+### NFAT1 ChIP-seq (publicly available)
 
 NFAT1-ChIP-seq samples were generated by Martinez et al., 2015 from cells expressing endogenous NFAT1 ("WT") or lacking NFAT1 ("KO").
 Cells lacking endogenous NFAT1 were transduced with an empty GFP vector ("Mock") or with a vector containing a mutated form of NFAT ("CA-RIT-RV").
 Either cell type was either left resting ("None") or stimulated with PMA and ionomycin ("P+I") for 1 hour.
 
 We downloaded the sequencing results (fastq files generated by SOLiD sequencing technology) from the Sequence Read Archive (GEO series GSE64407).
-SOLiD adapters had to be trimmed off, which we did with `cutadapt` specifying `--format=sra-fastq  --minimum-length 15 --colorspace` and the sample specific adapter sequences via `-g` and `-a` (see https://ars.els-cdn.com/content/image/1-s2.0-S1074761315000321-mmc6.xlsx for the sample-specific adapters).
+SOLiD adapters had to be trimmed off, which we did with `cutadapt` specifying `--format=sra-fastq  --minimum-length 15 --colorspace` and the sample specific adapter sequences via `-g` and `-a` (see [https://ars.els-cdn.com/content/image/1-s2.0-S1074761315000321-mmc6.xlsx](https://ars.els-cdn.com/content/image/1-s2.0-S1074761315000321-mmc6.xlsx) for the sample-specific adapters).
 The trimmed reads were subsequently aligned to the mouse genome version GRCm38 with `bowtie1` using the colorspace option.
 
 Coverage tracks normalized for differences in sequencing depths were be generated with `bamCoverage` of the `deepTools` suite (v3.1.0) using the following parameters: 
 `-bs 10 --normalizeUsing RPGC --effectiveGenomeSize 2150570000 --blackListFileName mm10.blacklist --ignoreForNormalization chrX chrY --ignoreDuplicates --minFragmentLength 40 -p 1`.
 
-Blacklisted regions were downloaded from https://sites.google.com/site/anshulkundaje/projects/blacklists.
+Blacklisted regions were downloaded from [https://sites.google.com/site/anshulkundaje/projects/blacklists](https://sites.google.com/site/anshulkundaje/projects/blacklists).
 
 Regions of statistically significant read enrichments in the ChIP samples compared to the corresponding input samples ("peaks") were identified with `MACS2` (2.1.1.20160309) using ChIP and corresponding input files and the following parameters: `-g 1.87e9 -p 0.01 --keep-dup all`.
 For final peak files, the `narrowpeak` outputs of `MACS2` were used, keeping only peaks with adjusted p-values below 0.01.
@@ -106,7 +110,7 @@ For final peak files, the `narrowpeak` outputs of `MACS2` were used, keeping onl
 | SRR1731131 | GSM1570755 | NFAT1 KO CA-RIT-RV P+I 1h input     | MUT-NFAT_Stim_input |
 
 
-#### TOX ChIP-seq
+### TOX ChIP-seq
 
 Processing was performed by Active Motif.
 In short, reads were aligned to the mm10 genome version using the BWA algorithm with default settings.
@@ -121,7 +125,7 @@ De novo motifs were identified with the `findMotifsGenome` program of the HOMER 
 To assess the overlap of peaks with annotated genes, gene annotations defined by RefSeq(GRCm38.p1-C57BL/6J) were used.
 An overlap was defined as a minimal 1-bp overlap between the MACS2 summit interval files (which are 1 bp intervals) and the feature annotation interval.
 
-## References
+## References <a name="refs"></a>
 
 Andrews, Simon. 2010. http://www.bioinformatics.babraham.ac.uk/projects/fastqc/.
 
