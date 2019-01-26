@@ -6,7 +6,7 @@ Methods for Scott et al., 2019
 ## Bioinformatics Methods
 
 The quality of the sequenced reads was assessed with `FastQC` and `QoRTs` (for RNA-seq samples).
-Unless stated otherwise, all plots involving high-throughput sequencing data were obtained with custom R scripts (see github.com/friedue/Scott2019 for the code).
+Unless stated otherwise, all plots involving high-throughput sequencing data were obtained with custom R scripts (see the folder [`code_for_figures`](https://github.com/friedue/Scott2019/tree/master/code_for_figures)).
 
 ### RNA-seq
 
