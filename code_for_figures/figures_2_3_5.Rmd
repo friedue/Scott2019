@@ -23,33 +23,10 @@ always_allow_html: yes
 
 ```{r setup, bootstrap.show.code = FALSE, results='hide', bootstrap.show.message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
 knitr::opts_chunk$set(bootstrap.show.code = FALSE, message=FALSE, warning=FALSE)
-suppressMessages(library(QoRTs))
-suppressMessages(library(goseq))
-suppressMessages(library(reshape2))
-suppressMessages(library(RColorBrewer))
-suppressMessages(library(ggplot2))
-suppressMessages(library(tidyr))
-suppressMessages(library(plyr))
-suppressMessages(library(kableExtra))
-suppressMessages(library(magrittr))
-suppressMessages(library(gtools))
-suppressMessages(library(plotly))
-suppressMessages(library(gage))
-
-suppressMessages(library(pathview))
+suppressMessages(library(pheatmap))
 suppressMessages(library(DESeq2))
 suppressMessages(library(edgeR))
-suppressMessages(library(limma))
-suppressMessages(library(openxlsx))
-suppressMessages(library(genefilter))
-suppressMessages(library(pheatmap))
-suppressMessages(library(gplots))
-suppressMessages(library(treemap))
-suppressMessages(library(scales))
-suppressMessages(library(Hmisc))
-suppressMessages(library(knitr))
-suppressMessages(library(annotate))
-suppressMessages(library(data.table))
+suppressMessages(library(ggplot2))
 suppressMessages(library(ggrepel))
 getOutputFormat <- function() {
   output <- rmarkdown:::parse_yaml_front_matter(
@@ -66,20 +43,18 @@ if(getOutputFormat() == 'pdf_document') {
 }
 tol12qualitative=c("#9e9ac8", "#6a51a3", "#fdbe85", "#fd8d3c", "#d94701", "#74c476", "#41ab5d", "#238b45", "#005a32", "#bdd7e7", "#6baed6", "#2171b5")
 palette <- c("#d94701", "#6a51a3", "#2171b5", "#238b45")
+
 ```
 
 
 
 ```{r deseq2_figure2, message=FALSE, eval=TRUE, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, results='hide'}
-counts <- read.table(file = "/Users/paz2005/Documents/andrew_schietingerLab/rna_analysis/gene.counts.txt", header = TRUE, check.names=FALSE, row.names=1)
-decoderFile <- "/Users/paz2005/Documents/andrew_schietingerLab/rna_analysis/decoder.txt"
+counts <- read.table(file = "fig2.counts.txt", header = TRUE, check.names=FALSE, row.names=1)
+decoderFile <- "fig2.metadata.txt"
 decoder.data <- read.table(decoderFile,header=T,stringsAsFactors=F,sep="\t")
 decoder.data$condition <- factor(decoder.data$condition)
 decoder.data$group.ID <-factor(decoder.data$condition)
 decoder.data <- decoder.data[decoder.data$sample.ID %in% colnames(counts),]
-counts <- counts[,c(decoder.data$sample.ID)]
-counts <- counts[,c(-1,-2,-20,-21,-22,-23,-15,-16)]
-decoder.data <- decoder.data[c(-1,-2,-20,-21,-22,-23,-15,-16),]
 #table(colnames(counts) == decoder.data$sample.ID)
 
 sampleConditions <- factor(make.names(decoder.data$group.ID), levels=c("N", "KO","OT1","SV40","WT"))
@@ -98,7 +73,7 @@ deseq2_SV40_vs_OT1_all <- as.data.frame(results(deseq2.dds, contrast=c("conditio
 
 Figure 2e: Heatmap of RNA-Seq expression for genes differentially expressed between TAG and OT1 T cells (FDR<0.05). 
 
-```{r figure2_e, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+```{r figure2_e, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, height=10}
 cpms <- cpm(counts[isexpr,], log=T)
 my_colors = c("green", "black", "red")
 my_colors = colorRampPalette(my_colors)(50)
@@ -131,23 +106,20 @@ ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label
 # Figure 3
 
 ```{r deseq2_figure3, message=FALSE, eval=TRUE, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, results='hide'}
-counts <- read.table(file = "/Users/paz2005/Documents/andrew_schietingerLab/rna_original/gene.counts.txt", header = TRUE, check.names=FALSE, row.names=1)
-decoderFile <- "/Users/paz2005/Documents/andrew_schietingerLab/rna_original/decoder.txt"
+counts <- read.table(file = "fig3.counts.txt", header = TRUE, check.names=FALSE, row.names=1)
+decoderFile <- "fig3.metadata.txt"
 decoder.data <- read.table(decoderFile,header=T,stringsAsFactors=F,sep="\t")
 decoder.data$condition <- factor(decoder.data$condition)
 decoder.data$group.ID <-factor(decoder.data$condition)
 decoder.data <- decoder.data[decoder.data$sample.ID %in% colnames(counts),]
-counts <- counts[,c(decoder.data$sample.ID)]
+# table(colnames(counts) == decoder.data$sample.ID)
 
-counts.sub <- counts[,grep("C", colnames(counts), invert=T)]
-decoder.data.sub <- decoder.data[grep("C", decoder.data$sample.ID, invert=T),]
-table( names(counts.sub) == decoder.data.sub$sample.ID)
-cnts <- counts.sub
-conds <- factor(make.names(decoder.data.sub$group.ID))
+cnts <- counts
+conds <- factor(make.names(decoder.data$group.ID))
 
-sampleConditions <-  factor(make.names(decoder.data.sub$group.ID))
-deseq2.coldata <- data.frame(condition = sampleConditions, row.names = colnames(counts.sub))
-deseq2.dds <- DESeq2::DESeqDataSetFromMatrix(countData = counts.sub, colData = deseq2.coldata, design = ~ condition)
+sampleConditions <-  factor(make.names(decoder.data$group.ID))
+deseq2.coldata <- data.frame(condition = sampleConditions, row.names = colnames(counts))
+deseq2.dds <- DESeq2::DESeqDataSetFromMatrix(countData = counts, colData = deseq2.coldata, design = ~ condition)
 isexpr <- rowSums(cpm(counts(deseq2.dds)) > 1) >= min(table(sampleConditions))
 deseq2.dds <- deseq2.dds[isexpr,]
 deseq2.dds <- DESeq(deseq2.dds)
@@ -158,8 +130,8 @@ deseq2_TOX_vs_mGFP_all <- as.data.frame(results(deseq2.dds, contrast=c("conditio
 
 Figre 3d: Heatmap of RNA-Seq expression for genes differentially expressed between TOX-GFP and GFP-expressing TCR TAG (FDR<0.10)
 
-```{r figure3_d, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
-cpms <- cpm(counts.sub[isexpr,], log=T)
+```{r figure3_d, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, height=10}
+cpms <- cpm(counts[isexpr,], log=T)
 my_colors = c("green", "black", "red")
 my_colors = colorRampPalette(my_colors)(50)
 pheatmap(cpms[row.names(deseq2_TOX_vs_mGFP_sig),grep("TOX|mGFP", colnames(cpms))], scale="row", fontsize=8, show_rownames=F, color = my_colors, main = "Tox vs. mGFP, padj < 0.10")
@@ -189,14 +161,14 @@ ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label
 
 Figre 3g: Heatmap of RNA-Seq expression for differentially expressed genes encoding transcription factors, inhibitory receptors, activation and signaling molecules, as well as cytokines and effector molecules in TOX-GFP overexpressing (TOX) or GFP-only expressing (GFP) TCR TAG. 
 
-```{r figure3_g, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+```{r figure3_g, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, height=10}
 breaksList = seq(-1.5,1.5, by = .1)
 color = colorRampPalette(c('#0C355E', 'white', '#9D2F2F'))(length(breaksList))
 color = colorRampPalette(c('blue', 'white', 'red'))(length(breaksList))
 cellwidth = 25
 cellheight = 25
-rlog_tran <- rlog(as.matrix(counts.sub))
-row.names(rlog_tran) <- row.names(counts.sub)
+rlog_tran <- rlog(as.matrix(counts))
+row.names(rlog_tran) <- row.names(counts)
 
 tran_factors <- c("Tox", "Ahr","Nfil3", "Eomes", "Prdm1", "Id2", "Id3", "Lef1", "Tcf7","Egr3")
 #tran_factors %in% row.names(deseq2_TOX_vs_mGFP_sig)
@@ -226,16 +198,13 @@ pheatmap(rlog_tran[selected_genes,], scale="row", cluster_rows = FALSE, cluster_
 
 
 ```{r deseq2_figure5, message=FALSE, eval=TRUE, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, results='hide'}
-counts <- read.table(file = "/Users/paz2005/Documents/andrew_schietingerLab/rna_analysis/gene.counts.txt", header = TRUE, check.names=FALSE, row.names=1)
-decoderFile <- "/Users/paz2005/Documents/andrew_schietingerLab/rna_analysis/decoder.txt"
+counts <- read.table(file = "fig5.counts.txt", header = TRUE, check.names=FALSE, row.names=1)
+decoderFile <- "fig5.metadata.txt"
 decoder.data <- read.table(decoderFile,header=T,stringsAsFactors=F,sep="\t")
 decoder.data$condition <- factor(decoder.data$condition)
 decoder.data$group.ID <-factor(decoder.data$condition)
 decoder.data <- decoder.data[decoder.data$sample.ID %in% colnames(counts),]
-counts <- counts[,c(decoder.data$sample.ID)]
-counts <- counts[,c(-1,-2,-20,-21,-22,-23,-15,-16)]
-decoder.data <- decoder.data[c(-1,-2,-20,-21,-22,-23,-15,-16),]
-#table(colnames(counts) == decoder.data$sample.ID)
+# table(colnames(counts) == decoder.data$sample.ID)
 
 sampleConditions <- factor(make.names(decoder.data$group.ID), levels=c("N", "KO","OT1","SV40","WT"))
 deseq2.coldata <- data.frame(condition = sampleConditions, row.names = colnames(counts))
@@ -244,18 +213,18 @@ isexpr <- rowSums(cpm(counts(deseq2.dds)) > 1) >= min(table(sampleConditions))
 deseq2.dds <- deseq2.dds[isexpr,]
 deseq2.dds <- DESeq(deseq2.dds)
 
-deseq2_WT_vs_KO_sig <- as.data.frame(subset(results(deseq2.dds, contrast=c("condition","WT","KO"), alpha=0.05), padj < 0.05))
-deseq2_WT_vs_KO_all <- as.data.frame(results(deseq2.dds, contrast=c("condition","WT","KO"), alpha=0.05))
+deseq2_WT_vs_KO_sig <- as.data.frame(subset(results(deseq2.dds, contrast=c("condition","KO","WT"), alpha=0.05), padj < 0.05))
+deseq2_WT_vs_KO_all <- as.data.frame(results(deseq2.dds, contrast=c("condition","KO","WT"), alpha=0.05))
 ```
 
 
 Figure 5a: Heatmap of RNA-Seq expression for genes differentially expressed between WT and KO cells (FDR<0.05). 
 
-```{r figure5_a, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+```{r figure5_a, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE, height=10}
 cpms <- cpm(counts[isexpr,], log=T)
 my_colors = c("green", "black", "red")
 my_colors = colorRampPalette(my_colors)(50)
-pheatmap(cpms[row.names(deseq2_WT_vs_KO_sig),grep("KO|WT", colnames(cpms))], scale="row", fontsize=8, show_rownames=F, color = my_colors, main = "WT vs. KO, padj < 0.05")
+pheatmap(cpms[row.names(deseq2_WT_vs_KO_sig),grep("KO|WT", colnames(cpms))], scale="row", fontsize=8, show_rownames=F, color = my_colors, main = "KO vs. WT, padj < 0.05")
 ```
 
 
