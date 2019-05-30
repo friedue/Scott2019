@@ -83,7 +83,7 @@ pheatmap(cpms[row.names(deseq2_SV40_vs_OT1_sig),grep("SV40|OT1", colnames(cpms))
 
 Figure 2f:  MA-plot of RNA-Seq data set; significantly differentially expressed genes are colored in red. 
 
-```{r figure2_f, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+```{r figure2_f, warning=FALSE, cache=TRUE,eval=F, echo=FALSE, comment=FALSE}
 genes_to_highlight <- c("Tox", "Nfil3", "Tigit","Il10", "Pdcd1", "Havcr2", "Cd101", "Entpd1", "Klre1", "Id2", "Cd2", "Ccr7", "Tcf7", "Lef1", "Il7r")
 res <- deseq2_SV40_vs_OT1_all
 res <- res[with(res, order(log2FoldChange)),]
@@ -100,6 +100,27 @@ ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label
      theme_bw(base_size = 16) + theme(legend.position="bottom") +
      scale_colour_manual(values = c("gray80", "red3")) + ggtitle("SV40 vs. OT1")  + 
      geom_text_repel(data=data.frame(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)  ), size=5, segment.color="white", color="black") + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)$log2FoldChange > 0, "red", "darkblue")) 
+```
+
+
+
+```{r figure2_f_larger, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+genes_to_highlight <- c("Tox", "Nfil3", "Tigit","Il10", "Pdcd1", "Havcr2", "Entpd1", "Id2", "Cd2", "Ccr7", "Tcf7", "Lef1", "Il7r")
+res <- deseq2_SV40_vs_OT1_all
+res <- res[with(res, order(log2FoldChange)),]
+res <- res[which(!is.na(res$padj)),]
+res$threshold  <- FALSE
+res[res$padj < 0.05,]$threshold <- TRUE
+res$gene <- row.names(res)
+ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label=gene)) + 
+    geom_point(alpha=0.8, size=1, show.legend = FALSE) + 
+    geom_hline(aes(yintercept = 0), colour = "red", size = 0.45) +
+    ylim( c(-1, 1) * quantile(abs(res$log2FoldChange[is.finite(res$log2FoldChange)]), probs = 0.99) * 1.3) + 
+    xlab("Mean expression") + 
+    ylab("Log2 FC (TAG vs. OT1)") + 
+     theme_bw(base_size = 16) + theme(legend.position="bottom") +
+     scale_colour_manual(values = c("gray80", "red3")) + ggtitle("SV40 vs. OT1")  + 
+     geom_text_repel(data=data.frame(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)  ), size=5, fontface=3,segment.color="white", color="black") + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)$log2FoldChange > 0, "red", "darkblue")) 
 ```
 
 
@@ -139,7 +160,7 @@ pheatmap(cpms[row.names(deseq2_TOX_vs_mGFP_sig),grep("TOX|mGFP", colnames(cpms))
 
 Figre 3e: MA-plot of RNA-Seq data set; significantly differentially expressed genes are colored in red.
 
-```{r figure3_e, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+```{r figure3_e, warning=FALSE, cache=TRUE, eval=F, echo=FALSE, comment=FALSE}
 genes_to_highlight <- c("Tox", "Cd244", "Eomes", "Havcr2", "Entpd1", "Id2", "Pdcd1", "Gzmb", "Cd38", "Cd160", "Cd101", "Fasl", "Ahr", "Nfil3", "Egr3", "Il5", "Tox", "Ahr","Nfil3", "Eomes", "Prdm1", "Id2", "Id3", "Lef1", "Tcf7","Egr3","Pdcd1", "Cd244", "Havcr2", "Entpd1","Tnfrsf9", "Tnfrsf8", "Klre1","Cd2", "Cd27", "Cxcr3", "Ccr7", "Gzma", "Gzmb","Gzmc",  "Il5", "Il10", "Lef1", "Tcf7", "Tox", "Entpd1", "Cd244", "Tigit", "Cd38", "Il7r", "Tcf7l2")
 genes_to_highlight <- unique(genes_to_highlight)
 res <- deseq2_TOX_vs_mGFP_all
@@ -157,6 +178,27 @@ ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label
     theme_bw(base_size = 16) + theme(legend.position="bottom") +
     scale_colour_manual(values = c("gray80", "red3")) + ggtitle("Tox vs. GFP")  + 
     geom_text_repel(data=data.frame(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)  ), size=5, segment.color="white", color="black") + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)$log2FoldChange > 0, "red", "darkblue")) 
+```
+
+
+```{r figure3_e_larger, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+genes_to_highlight <- c("Tox", "Cd244", "Eomes", "Havcr2", "Entpd1", "Id2", "Pdcd1", "Cd38", "Cd160", "Cd101", "Fasl", "Ahr", "Nfil3", "Egr3",  "Tox", "Ahr","Nfil3", "Eomes", "Prdm1", "Id2", "Id3", "Lef1", "Tcf7","Egr3","Pdcd1", "Cd244", "Havcr2", "Entpd1","Tnfrsf9", "Tnfrsf8", "Cd2", "Cd27", "Cxcr3", "Ccr7", "Il10", "Lef1", "Tcf7", "Tox", "Entpd1", "Cd244", "Tigit", "Cd38", "Il7r", "Tcf7l2")
+genes_to_highlight <- unique(genes_to_highlight)
+res <- deseq2_TOX_vs_mGFP_all
+res <- res[with(res, order(log2FoldChange)),]
+res <- res[which(!is.na(res$padj)),]
+res$threshold  <- FALSE
+res[res$padj < 0.10,]$threshold <- TRUE
+res$gene <- row.names(res)
+ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label=gene)) + 
+    geom_point(alpha=0.8, size=1, show.legend = FALSE) + 
+    geom_hline(aes(yintercept = 0), colour = "red", size = 0.45) +
+    xlab("Mean expression") + 
+    ylab("Log2 FC") + ggtitle("Tox vs. GFP")  + 
+    ylim(-3,3) +
+    theme_bw(base_size = 16) + theme(legend.position="bottom") +
+    scale_colour_manual(values = c("gray80", "red3")) +
+    geom_text_repel(data=data.frame(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)  ), size=5,fontface=3, segment.color="white", color="black") + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)$log2FoldChange > 0, "red", "darkblue")) 
 ```
 
 Figre 3g: Heatmap of RNA-Seq expression for differentially expressed genes encoding transcription factors, inhibitory receptors, activation and signaling molecules, as well as cytokines and effector molecules in TOX-GFP overexpressing (TOX) or GFP-only expressing (GFP) TCR TAG. 
@@ -191,7 +233,20 @@ selected_genes <- c( "Gzma", "Gzmb","Gzmc",  "Il5", "Il10")
 selected_genes_lbls <- selected_genes
 pheatmap(rlog_tran[selected_genes,], scale="row", cluster_rows = FALSE, cluster_cols = F, gaps_col = c(2), color=color, main="Cytokines and Effector Molecules", border_color = NA,  cellwidth = cellwidth, cellheight = cellheight, breaks = breaksList)
 
+all <- c("Tox", "Ahr","Nfil3", "Eomes", "Prdm1", "Id2", "Id3", "Lef1", "Tcf7","Egr3", "Pdcd1", "Cd244", "Havcr2", "Entpd1", "Tnfrsf9", "Tnfrsf8", "Klre1","Cd2", "Cd27", "Cxcr3", "Ccr7",  "Gzma", "Gzmb","Gzmc",  "Il5", "Il10")
+sub <- deseq2_TOX_vs_mGFP_sig[all,] 
+sub$gene <- row.names(sub)
+sub$fc <- ifelse(sub$log2FoldChange > 0, 2 ^ sub$log2FoldChange, -1 / (2 ^ sub$log2FoldChange))
+sub$cat <- "na"
+sub[c("Tox", "Ahr","Nfil3", "Eomes", "Prdm1", "Id2", "Id3", "Lef1", "Tcf7","Egr3"),]$cat <- "Transcription factors"
+sub[c("Pdcd1", "Cd244", "Havcr2", "Entpd1"),]$cat <- "Inhibitory receptors"
+sub[c("Tnfrsf9", "Tnfrsf8", "Klre1","Cd2", "Cd27", "Cxcr3", "Ccr7"),]$cat <- "Activation and signaling molecules"
+sub[c( "Gzma", "Gzmb","Gzmc",  "Il5", "Il10"),]$cat <- "Cytokines/cytotoxic molecules"
+#pdf("selected_genes_fold_change.pdf", width=14, height=10)
+ggplot(sub, aes(x=reorder(gene, fc), y=fc)) +  geom_bar(stat='identity') + coord_flip() + theme_bw() + xlab("") + ylab("Fold change (TOX-GFP vs GFP)") +facet_wrap(~cat,  scales="free") +   scale_y_continuous(breaks =round(seq(-3, 8, by = 0.5),1))
+#dev.off()
 ```
+
 
 
 # Figure 5
@@ -231,7 +286,7 @@ pheatmap(cpms[row.names(deseq2_WT_vs_KO_sig),grep("KO|WT", colnames(cpms))], sca
 
 Figure 5b:  MA-plot of RNA-Seq data set; significantly differentially expressed genes are colored in red. 
 
-```{r figure5_b, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+```{r figure5_b, warning=FALSE, eval=F, cache=TRUE, echo=FALSE, comment=FALSE}
 genes_to_highlight <- c("Tox", "Il7r", "Lef1", "Tcf7", "Cd38", "Cd101", "Pdcd1", "Entpd1", "Tigit", "Prdm1", "Havcr2", "Nfil3")
 res <- deseq2_WT_vs_KO_all
 res <- res[with(res, order(log2FoldChange)),]
@@ -248,5 +303,25 @@ ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label
      theme_bw(base_size = 16) + theme(legend.position="bottom") +
      scale_colour_manual(values = c("gray80", "red3")) + ggtitle("WT vs. KO")  + 
      geom_text_repel(data=data.frame(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE || threshold == FALSE )  ), size=5, segment.color="white", color="black") + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)$log2FoldChange > 0, "red", "darkblue")) + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == FALSE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == FALSE)$log2FoldChange > 0, "black", "black"))
+```
+
+
+```{r figure5_b_larger, warning=FALSE, cache=TRUE, echo=FALSE, comment=FALSE}
+genes_to_highlight <- c("Tox", "Il7r", "Lef1", "Tcf7", "Pdcd1", "Entpd1", "Tigit", "Prdm1", "Havcr2", "Nfil3")
+res <- deseq2_WT_vs_KO_all
+res <- res[with(res, order(log2FoldChange)),]
+res <- res[which(!is.na(res$padj)),]
+res$threshold  <- FALSE
+res[res$padj < 0.05,]$threshold <- TRUE
+res$gene <- row.names(res)
+ggplot(data=res, aes(x=log2(baseMean), y=log2FoldChange, colour=threshold, label=gene)) + 
+    geom_point(alpha=0.8, size=1, show.legend = FALSE) + 
+    geom_hline(aes(yintercept = 0), colour = "red", size = 0.45) +
+    ylim(-10, 10) +
+    xlab("Mean expression") + 
+    ylab("Log2 FC") + ggtitle("WT vs. KO")  + 
+     theme_bw(base_size = 16) + theme(legend.position="bottom") +
+     scale_colour_manual(values = c("gray80", "red3")) +
+     geom_text_repel(data=data.frame(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE || threshold == FALSE )  ), size=5, fontface=3, segment.color="white", color="black") + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == TRUE)$log2FoldChange > 0, "red", "darkblue")) + geom_point(data=subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == FALSE), shape=1, size=3, color=ifelse(subset(res[genes_to_highlight[genes_to_highlight %in% row.names(res)],], threshold == FALSE)$log2FoldChange > 0, "black", "black"))
 ```
 
