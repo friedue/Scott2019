@@ -1,5 +1,0 @@
-sample.ID	qc.data.dir	condition	group.ID
-1	TOX-A	TOX-A	TOX	TOX
-2	TOX-B	TOX-B	TOX	TOX
-4	mGFP-A	mGFP-A	mGFP	mGFP
-5	mGFP-B	mGFP-B	mGFP	mGFP
