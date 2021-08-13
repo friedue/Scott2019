@@ -1,0 +1,313 @@
+---
+title: "RNA-seq: Comparing OT1 and TOX KO"
+author: "Friederike Duendar"
+date: "12/7/2018"
+output:
+  pdf_document:
+    toc: true
+fontsize: 8pt
+bibliography: references.bib
+header-includes:
+   - \usepackage{subfig}
+   - \usepackage{float}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.pos='H')
+```
+
+```{r libraries, cache=FALSE, include = FALSE}
+library(DESeq2)
+library(edgeR)
+library(UpSetR)
+library(pheatmap)
+library(VennDiagram)
+library(openxlsx)
+library(magrittr)
+library(ggrepel)
+library(ggplot2)
+theme_set(theme_bw(base_size = 16) )
+library(data.table)
+library(patchwork)
+source("functions_downstreamAnalyses.R")
+```
+
+
+```{r}
+wd <- "2018-08_Andrew_Schietinger/" ## CHANGE THIS TO YOUR SETTINGS
+load(file = paste0(wd, "data/rna_seq.Rdata"))
+uni_cols <- c("lavender","plum1", "plum2","palevioletred2","maroon2","maroon4")
+```
+
+The main question is: Are putative TOX targets (= up in tumor-stimulated WT cells) also up in SV40 (= tumor-stimulated and subsequently dysfunctional T cells with high TOX)?
+
+# Intersection of DE genes of [WT vs. KO] and [SV40 vs. OT1]
+
+* __SV40/OT1__ resulted in `r nrow(deseq2_SV40_vs_OT1_sig)` differentially expressed genes (adjusted p-value < 0.05).
+* __WT/KO__ resulted in `r nrow(deseq2_WT_vs_KO_sig)` DE genes.
+
+`r table( rownames(deseq2_WT_vs_KO_sig) %in% rownames(deseq2_SV40_vs_OT1_sig) )[2]` genes, or `r round(as.numeric(table( rownames(deseq2_WT_vs_KO_sig) %in% rownames(deseq2_SV40_vs_OT1_sig) )[2])/nrow(deseq2_WT_vs_KO_sig) * 100)` percent of genes that differ between WT and TOX KO cells also differ when bystander T cells (OT1) are compared to chronically tumor-stimulated T cells (SV40).
+
+```{r}
+# determine shared DE genes WT & SV 40
+goi <- unique(intersect(rownames(deseq2_WT_vs_KO_sig),
+                        rownames(deseq2_SV40_vs_OT1_sig)))
+# generate df of those shared DE genes
+wtsv40.df <- data.frame( WTvsKO_lfc = deseq2_WT_vs_KO_sig[goi,]$log2FoldChange,
+                         SV40vsOT1_lfc =  deseq2_SV40_vs_OT1_sig[goi,]$log2FoldChange,
+                         gene = goi)
+wtsv40.df$discrepancy <- with(wtsv40.df, ifelse( (WTvsKO_lfc < 0 & SV40vsOT1_lfc >0) | (WTvsKO_lfc > 0 & SV40vsOT1_lfc <0), TRUE,FALSE))
+```
+
+
+```{r prep_WT-vs-SV40}
+## WT/KO vs. SV40/OT1
+## define figure legend...........................
+title_a <- "" #"Venn WT-SV40"
+cap_a <- "(a) Overlap of genes that are sign. DE in WT vs. KO and SV40 vs. OT1."
+
+title_b <- "" #"Corr. WT vs. SV40"
+cap_b <- paste("(b) Correlation of logFC values for the",length(goi), "genes that are sign. DE in both WT vs. KO and SV40 vs. OT1.
+               The majority of these changes are very similar; genes shown in red are those that change differently. E.g., Egr1 is more strongly expressed in TOX KO cells when compared to WT cells, while it is reduced in OT1 cells when those are compared to SV40. For more details, see (c) and (d).")
+
+title_c <- ""
+cap_c <-"(c) Heatmap of normalized expression values (log2(cpm)) across all samples (color corresponds to z-scores)."
+  
+title_d <- ""
+cap_d <-"(d) Related to (c), this shows the normalized expression values per sample, stratified by cluster. Cluster 6 captures genes that show reduced expression in OT1 cells (Listeria infection); cluster 7 captures genes that are more strongly expressed in TOX KO cells."
+
+
+## put it together...........................
+caption <- paste("Comparing the DE genes of SV40/OT1 to those of WT/KO.",
+                 cap_a, cap_b, cap_c,cap_d)
+subcaps <- c(title_a, title_b, title_c, title_d)
+
+## define widths........................................
+def_widths <- c('.2\\linewidth','.35\\linewidth', '.35\\linewidth', '.9\\linewidth')
+```
+```{r fig4_venn_WT-vs-SV40, fig.cap=caption, fig.subcap=subcaps, out.width=def_widths,fig.asp = .8, fig.ncol =3}
+## Venn -------------------------------------------------------------------------
+pdf("OT1_vs_KO_rna_venn_WTKO-vs-SV40OT1.pdf")
+gplots::venn(list(`WT vs KO` = rownames(deseq2_WT_vs_KO_sig),
+                  `SV40 vs. OT1`= rownames(deseq2_SV40_vs_OT1_sig)))
+#dev.off()
+
+
+## Correlation of changes: plot fold changes------------------------------------
+#pdf("OT1_vs_KO_logFC_sharedDEgenes_WTKO-vs-SV40OT1.pdf", width = 10)
+P <- ggplot(wtsv40.df, aes(x = WTvsKO_lfc, y = SV40vsOT1_lfc, color = discrepancy, label = gene)) + 
+  geom_point() +
+  geom_text_repel(data = subset(wtsv40.df, discrepancy == TRUE),
+                  size =  3.5) +
+  scale_color_manual(values = c("black","tomato")) +
+  guides(color=FALSE) + xlab("log2FC (WT/KO)") + ylab("log2FC (SV40/OT1)") +
+  ggtitle("Genes that change in SV40/OT1 and WT/KO")
+print(P)
+#dev.off()
+
+## heatmap of intersect WT/KO -- SV40/OT1 ----------------------------------------
+k.fix.intersect <- 7
+inter_between_ko_vs_wt_and_sv40_vs_ot1 <- intersect(row.names(deseq2_WT_vs_KO_sig),
+                                                    row.names(deseq2_SV40_vs_OT1_sig))
+# extract the clusters
+pheat_df.intersect <- pheatmap(cpms[inter_between_ko_vs_wt_and_sv40_vs_ot1,grep("N|KO|WT|OT1|SV40", colnames(cpms))],
+                               scale="row",
+                               cutree_rows=k.fix.intersect,
+                               silent = TRUE)
+row_clusters.intersect <- as.data.frame(cutree(pheat_df.intersect$tree_row, k=k.fix.intersect)[pheat_df.intersect$tree_row[["order"]]])
+colnames(row_clusters.intersect) <- "cluster"
+row_clusters.intersect$cluster <- paste0("cluster.", row_clusters.intersect$cluster)
+
+# print the heatmap
+#pdf("OT1_vs_KO_rna_sharedDEgenes_WTKO-vs-SV40OT1_heatmap_zscores.pdf", width = 6)
+abch(cpms[inter_between_ko_vs_wt_and_sv40_vs_ot1, grep("N|KO|WT|OT1|SV40", colnames(cpms))], 
+     n_quant_breaks = 500,
+     zero_color = NULL,
+     scale="row", 
+     fontsize=10, show_rownames=F, 
+     color = uni_cols,#c("dodgerblue3","white","firebrick1","firebrick4"), 
+     cutree_rows=k.fix.intersect, 
+     annotation_row = row_clusters.intersect, 
+     main = "Intersect of DE genes WT/KO and SV40/OT1")
+#dev.off()
+
+hm_clusters_intersect <- lapply( paste0("cluster.", seq(1:k.fix.intersect)), function(x){
+  ## subset matrix to those genes that belong to a given cluster
+      grp_cpm <- scale_rows(cpms[row.names(subset(row_clusters.intersect, cluster==x)),])                                 #grepl("KO|WT|OT1|SV40", colnames(cpms))])
+      ## turn into long format
+      grp_cpm_m <- melt(grp_cpm)
+      grp_cpm_m$group <- gsub("\\-.*","",grp_cpm_m$Var2)
+      grp_cpm_m$group <- factor(grp_cpm_m$group, levels=c("N", "SV40","WT","OT1", "KO"), ordered = TRUE)
+      grp_cpm_m$Var2 <- factor(grp_cpm_m$Var2, levels=c(  "N-1","N-2","N-3" ,
+                                                          "SV40-3" ,"SV40-4", "SV40-5",
+                                                          "WT-2","WT-3", "WT-5",
+                                                          "OT1-2","OT1-3","OT1-4",
+                                                          "KO-1","KO-2","KO-3"),
+                               ordered = TRUE)
+      grp_cpm_m$cluster <- x
+      return(as.data.table(grp_cpm_m))
+      }) %>% rbindlist
+setnames(hm_clusters_intersect, c("Var1","Var2","group","value"), c("gene","sample","condition","z.score.cpm"))
+hm_clusters_intersect$gene <- as.character(hm_clusters_intersect$gene)
+
+#Plines <- ggplot(hm_clusters_intersect, aes(x = sample, y = value, color = condition)) + 
+#  geom_line(aes(group=gene), alpha=.5) + 
+#  theme_classic() + 
+#  geom_hline(yintercept=0) + 
+#  ylim(-3,3) + ylab("") +
+#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("") +
+#  facet_wrap(~cluster, ncol = 2) + guides(color = FALSE)
+
+Pboxplots <- ggplot(hm_clusters_intersect, aes(x = sample, y = z.score.cpm, color = condition)) + 
+  #geom_boxplot(notch = TRUE) + 
+  ggbeeswarm::geom_quasirandom(size = .5) +
+  theme_bw() + 
+  geom_hline(yintercept=0) + 
+  ylim(-3,3) + ylab("z-score of log2(cpm)") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("") +
+  facet_wrap(~cluster, ncol=3) +
+  guides(color = FALSE) 
+
+
+## define a table with the gene names of the genes of cluster 6 and 7
+#library(grid)
+#library(gridExtra)
+#df1 <- hm_clusters_intersect[cluster %in% c("cluster.6","cluster.7") , -c("sample","z.score.cpm","condition"),with=FALSE] %>% unique %>% #as.data.frame
+#tt <- ttheme_default(colhead=list(fg_params = list(parse=TRUE)),
+#                     base_size = 14,
+#                     padding = unit(c(2, 4), "mm"))
+#tbl <- tableGrob(df1, rows=NULL, theme=tt)
+# print boxplots and gene names next to each other
+#grid.arrange(Pboxplots, tbl,
+#             nrow = 1,
+#             as.table = TRUE)
+
+## barplots of the actual cpm values---------------------------------------
+cpms.tmp <- melt(cpms[ unique(hm_clusters_intersect[cluster %in% c("cluster.6","cluster.7")]$gene),]) %>% as.data.table
+setnames(cpms.tmp, c("Var1","Var2","value"), c("gene","sample","log2.cpm"))
+cpms.tmp$sample <- factor(cpms.tmp$sample, levels=c(  "N-1","N-2","N-3" ,
+                                                          "SV40-3" ,"SV40-4", "SV40-5",
+                                                          "WT-2","WT-3", "WT-5",
+                                                          "OT1-2","OT1-3","OT1-4",
+                                                          "KO-1","KO-2","KO-3"), ordered = TRUE)
+cpms.tmp <-cpms.tmp[hm_clusters_intersect, on = c("gene","sample"), nomatch=0]
+Pbar.cl6 <- ggplot(cpms.tmp[cluster == "cluster.6"],
+                   aes(x = sample, y = log2.cpm, fill = condition)) + geom_bar(stat = "identity") +
+  facet_wrap(~gene, scale = "free", ncol = 2) + coord_flip() +
+  guides(fill = FALSE) +
+  theme_bw(base_size = 8) +
+   ggtitle("Cluster 6 genes") + xlab("")
+
+Pbar.cl7 <- ggplot(cpms.tmp[cluster == "cluster.7"],
+                   aes(x = sample, y = log2.cpm, fill = condition)) + geom_bar(stat = "identity") +
+  facet_wrap(~gene, scale = "free", ncol = 2) + coord_flip() +
+  guides(fill = FALSE) +
+  theme_bw(base_size = 7) +
+  ggtitle("Cluster 7 genes") + xlab("")
+
+#Pboxplots
+Pbar.cl6 + Pbar.cl7
+
+```
+
+
+\clearpage
+
+# OT1 vs. KO
+
+Directly comparing TOX KO and OT1 T cells, which both have low levels of TOX.
+
+- _TOX KO_: tumor-stimulated T cells but genetically depleted of TOX
+- _OT1_: T cells following _Listeria_ infection (acute; cannot recognize the tumor, thus they don't get stimulated despite being in the presence of tumor cells; low endogenous Tox levels)
+
+
+```{r}
+res4 <- prep_volcano_plot(deseq2_OT1_vs_KO_all)
+```
+
+
+```{r prep_captions_for_OT1-vs-KO}
+### OT1 vs KO
+title_a <- ""# MA plot
+cap_a <- "(a) MA plot of genes for the expression values from OT1 cells and Tox KO cells."
+
+title_b <- "" #"GO terms enriched in OT1."
+cap_b <- "(b) Heatmap of genes with significant expression differences when comparing bystander T cells to tumor-stimulated Tox KO cells. Colors represent the z-score normalized expression values (log2(cpm)) across all samples. Genes were clustered with hierarchical clustering and the dendrogram was cut to indicate 6 different clusters of genes. Note that the order of the clusters is not based on their position form top to bottom, but based on the hierarchy, i.e. cluster 1 and 2 are the clusters that are furthest apart from each other."
+
+label <- "\\label{fig:OT1_KO}"
+caption <- paste(label, "Direct comparison of OT1 cells vs. Tox KO cells. There were a total of", 
+                 nrow(deseq2_OT1_vs_KO_sig), "DE genes when comparing OT1 vs. Tox KO cells of which", 
+                 nrow(subset(deseq2_OT1_vs_KO_sig, log2FoldChange > 0)), 
+                 "are up in the OT1 cells (no tumor stimulus; low Tox levels) and",
+                 nrow(subset(deseq2_OT1_vs_KO_sig, log2FoldChange < 0)), 
+                 "are up in the tumor-stimulated Tox KO cells.",
+                 cap_a, cap_b,
+                 "See Figure \\ref{fig:trees} for the enriched GO terms within the individual clusters.")
+subcaps <- c(title_a, title_b, title_c)
+def_widths <- ".49\\linewidth"
+```
+```{r OT1_vs_KO, fig.cap=caption, fig.subcap=subcaps, out.width=def_widths,fig.asp = 1, fig.ncol =2}
+## OT1 vs KO
+#pdf("rna_OT1vsKO.pdf")
+ggplot(data = res4, 
+       aes(x = log2(baseMean), y = log2FoldChange,
+           colour = threshold, label = gene)) + 
+  geom_point(alpha=0.9, show.legend = FALSE, aes(shape = threshold)) + 
+  geom_hline(aes(yintercept = 0), colour = "red", size = 0.45) +
+  ylim( c(-1, 1) * quantile(abs(res4$log2FoldChange[is.finite(res4$log2FoldChange)]), probs = 0.99) * 1.1) + 
+  xlab("Mean expression") + 
+  ylab("Log2 Fold Change (OT1/TOX KO)") + 
+  theme(axis.title.x = element_text(face = "bold", size = 15),
+          axis.text.x = element_text(face = "bold", size = 12)) +
+  theme(axis.title.y = element_text(face = "bold", size = 15),
+          axis.text.y = element_text(face = "bold", size = 12)) +
+  theme(legend.title = element_text(face = "bold", size = 15)) +
+  theme(legend.text = element_text(size = 14)) + 
+  theme_bw() + 
+  theme(legend.position="bottom") +
+  scale_colour_manual(values = c("gray75", "tomato")) + 
+  scale_shape_manual(values = c(20,19)) +
+  ggtitle("OT1 vs. KO") + 
+  geom_text_repel(data = subset(res4, threshold == TRUE & ((log2(baseMean) > 10 & abs(log2FoldChange) > 5) | (log2(baseMean) > 15 & abs(log2FoldChange) > 2))),
+                  size=4.5, segment.color="black", color="black") 
+#dev.off()
+
+
+## HEATMAP ====================================================================
+k.OT1_KO <- 6
+sample_anno <- data.frame(Tox = as.numeric(cpms["Tox",]),
+                          row.names = colnames(cpms))
+sample_anno$stimulus <- ifelse(grepl("^N",row.names(sample_anno)), "none",
+                               ifelse(grepl("^OT1", row.names(sample_anno)), "Lm only", "tumor"))
+
+sample_order <- c("N-1","N-2","N-3",  "OT1-2","OT1-3","OT1-4", "KO-1", "KO-2","KO-3", 
+                                            "SV40-3", "SV40-4", "SV40-5", "WT-2","WT-3","WT-5") 
+
+
+hmdf <- pheatmap(cpms[rownames(deseq2_OT1_vs_KO_sig), sample_order], scale="row",cluster_cols=FALSE, silent=TRUE)
+rc <- as.data.frame(cutree(hmdf$tree_row, k = k.OT1_KO)[hmdf$tree_row[["order"]]])
+colnames(rc) <- "cluster"
+rc$cluster <- paste0("cluster.", rc$cluster)
+
+abch(cpms[rownames(deseq2_OT1_vs_KO_sig), sample_order],
+     annotation_col = sample_anno,
+     annotation_row = rc,
+     annotation_color = list(stimulus = c(none = "grey85",`Lm only` = "limegreen", tumor = "goldenrod1"),
+                             Tox = scales::brewer_pal("seq", "Purples")(5),
+                             cluster = c(cluster.1 = "lavender",                   
+                                         cluster.2 = "cyan", 
+                                         cluster.3 = "cadetblue",
+                                         cluster.4 = "dodgerblue1",
+                                         cluster.5 = "blue",
+                                         cluster.6 = "navyblue" )),
+     cluster_cols = FALSE, 
+     n_quant_breaks = 500, 
+     scale = "row", 
+     show_rownames = FALSE, 
+     color = uni_cols,
+     zero_color = NULL,
+     cutree_rows = k.OT1_KO,
+     main = "DE genes based only on OT1/KO\n(all samples are shown, though)")
+```

@@ -1,0 +1,127 @@
+---
+title: "RNA-seq: WT vs. TOX KO"
+author: "Friederike Duendar"
+date: "11/28/2018"
+output: pdf_document
+bibliography: references.bib
+header-includes:
+   - \usepackage{subfig}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE)
+```
+
+```{r libraries, cache=FALSE}
+library(DESeq2)
+library(edgeR)
+library(UpSetR)
+library(pheatmap)
+library(VennDiagram)
+library(openxlsx)
+library(magrittr)
+library(ggrepel)
+library(ggplot2)
+theme_set(theme_bw(base_size = 16) )
+library(data.table)
+library(patchwork)
+source("/Users/frd2007/Documents/Projects/2018-08_Andrew_Schietinger/andrew_schietingerLab/code_for_paper/functions.R")
+```
+
+```{r}
+wd <- "2018-08_Andrew_Schietinger/"
+load(file = paste0(wd, "data/rna_seq.Rdata"))
+uni_cols <- c("lavender","plum1", "plum2","palevioletred2","maroon2","maroon4")
+```
+
+```{r fold_change_counts_for_barplot}
+dedt <- as.data.table(deseq2_WT_vs_KO_sig, keep.rownames = TRUE)
+setnames(dedt, "rn", "gene")
+dedt[, direction := ifelse(log2FoldChange <0, "-1", "1")]
+dedt[, category := ifelse(log2FoldChange >= 2, "up_2x",
+                          ifelse(log2FoldChange >= 1, "up_1-2x",
+                                 ifelse(log2FoldChange >= 0, "up_lessThan1",
+                                        ifelse(log2FoldChange <= -2, "down_2x",
+                                               ifelse(log2FoldChange <= -1,"down_1-2x", "down_lessThan1")))))]
+
+de.count <- dedt[, .N, by=c("category","direction")]
+de.count <- de.count[, sum(N), direction] %>% .[de.count, on ="direction"]
+de.count[, total := sum(N)] 
+de.count[, pct := N/total *100 ]
+de.count$category <- factor(de.count$category, levels = c("up_2x","up_1-2x", "up_lessThan1",                                                          "down_2x","down_1-2x","down_lessThan1"),
+                            ordered = TRUE)
+```
+
+```{r prep_DE_plot}
+## define captions and subtitles
+title_a <- "MA plot"
+cap_a <- "(a) MA plot depicts the fold change of expression (WT/KO) vs. the average expression of a given gene across all replicates and conditions. Dots colored in red correspond to genes with adj. p-values < 0.05."
+
+title_b <- 'DE genes WT vs. KO'
+cap_b <- paste("(b) Distribution of up- and down-regulated genes when comparing WT vs. TOX KO. There were", unique(de.count$total), "DE genes in total of which ", round(unique(de.count[direction == "1"]$V1)/unique(de.count$total) * 100), "percent were more strongly expressed in WT. The barplot shows the fractions of genes for either change of direction.")
+
+title_c <- 'HM of DE genes'
+cap_c <- paste("Z-score-normalized log fold changes (WT/KO) for all DE genes.")
+
+## put it together
+caption <- paste('Characterizing DE genes of WT/KO.', cap_a, cap_b, cap_c)
+subcaps <- c(title_a, title_b, title_c)
+## define figure widths
+def_widths <- c('.58\\linewidth','.39\\linewidth','.49\\linewidth')
+```
+```{r fig4_de, fig.cap=caption, fig.subcap=subcaps, out.width=def_widths,fig.asp = .8, fig.ncol =2}
+## VOLCANO PLOT RNA-seq ========================================================
+#pdf("A_rna_MAplot_WT_vs_KO_padj0.05_moreLabels.pdf", width = 10)
+res <- prep_volcano_plot(deseq2_WT_vs_KO_all, padj_threshold = 0.05)
+ggplot(data = res, 
+       aes(x = log2(baseMean), y = log2FoldChange,
+           colour = threshold, label = gene)) + 
+  geom_point(alpha=0.9, show.legend = FALSE, aes(shape = threshold)) + 
+  geom_hline(aes(yintercept = 0), colour = "red", size = 0.45) +
+  ylim( c(-1, 1) * quantile(abs(res$log2FoldChange[is.finite(res$log2FoldChange)]), probs = 0.99) * 1.1) + 
+  xlab("Mean expression") + 
+  ylab("Log2 Fold Change") + 
+  theme(axis.title.x = element_text(face = "bold", size = 15),
+          axis.text.x = element_text(face = "bold", size = 12)) +
+  theme(axis.title.y = element_text(face = "bold", size = 15),
+          axis.text.y = element_text(face = "bold", size = 12)) +
+  theme(legend.title = element_text(face = "bold", size = 15)) +
+  theme(legend.text = element_text(size = 14)) + 
+  theme_bw() + 
+  theme(legend.position="bottom") +
+  scale_colour_manual(values = c("gray75", "tomato")) + 
+  scale_shape_manual(values = c(20,19)) +
+  ggtitle("WT vs. KO") + 
+    geom_text_repel(data = subset(res, threshold == TRUE & ((log2(baseMean) > 10 & abs(log2FoldChange) > 3) |  (log2(baseMean) > 12.5 & abs(log2FoldChange) > 2))), size=4.5, segment.color="black", color="black") 
+#dev.off()
+
+## FOLD CHANGE BAR PLOT ===============================================
+#pdf("rna_barplot_updown.pdf")
+ggplot(as.data.frame(de.count), aes(x = "WT_vs_KO", y = pct * as.numeric(direction),
+                             fill = category, label = paste("n = ",N))) +
+  geom_bar(stat = "identity",  width = 0.8) +
+  geom_text(size = 5, position = position_stack(vjust = 0.5)) +
+  theme_classic(base_size = 24) +
+  #theme(legend.position = "top") + #legend.justification=c(0,1), legend.position=c(0,1)) +
+  geom_hline(yintercept = 0,colour = "grey90") +
+  scale_fill_manual(values = c("#F50008", "#FD696B", "#FED6DB", "#0000F7","#7A74FF", "#B4AFFF"), 
+                   name="|logFC| (WT/KO)",
+                   labels=c(">2 UP", "1-2 UP", "< 1 UP", ">2 DN", "1-2 DN", "<1 DN")) +
+  ylab("% sign. DE genes") +
+  xlab("") +
+  coord_cartesian(ylim = c(-55,55))
+#dev.off()
+
+## HEATMAP RNA-seq WT_vs_KO ==================================================
+#pdf("A_rna_heatmap_centerScaled_WT_vs_KO_padj0.05.pdf")
+abch(cpms[row.names(subset(all.rna.res.df, WT_vs_KO.padj<0.05)),
+              grep("KO|WT", colnames(cpms))],
+     zero_color = NULL, n_quant_breaks = 500,
+     scale="row", fontsize_col = 12, 
+     show_rownames=F, 
+     color = uni_cols,
+     main = "WT vs. KO, padj < 0.05")
+#dev.off()
+```
